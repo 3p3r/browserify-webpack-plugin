@@ -1,0 +1,10 @@
+{
+  "name": "browserify-webpack-plugin",
+  "version": "0.0.1",
+  "description": "simple but comprehensive webpack plugin to bundle almost any javascript for modern browsers.",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "Sepehr Laal",
+  "license": "MIT"
+}
