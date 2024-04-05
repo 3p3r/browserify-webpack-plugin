@@ -2,6 +2,7 @@ import debug from "debug";
 import { dirname } from "path";
 import { promises as nativeFs } from "fs";
 import TerserPlugin from "terser-webpack-plugin";
+import { lowestCommonAncestor } from "lowest-common-ancestor";
 import { initialize, serialize, compress, promises as wasabioFs } from "wasabio";
 import { type Configuration, type Compiler, ProvidePlugin, sources, Compilation } from "webpack";
 
@@ -39,10 +40,10 @@ class BrowserifyWebpackPlugin {
         },
         async () => {
           log("processing assets tapped %s", PLUGIN_ID);
-          const files = await this._getIncludedFiles();
+          const files = await this._globIncludedPaths();
           if (files.length) {
             log("writing included files into wasabio memory: %o", files);
-            const compressed = await this._getWasabioMemory(files);
+            const compressed = await this._makeWasabioMemory(files);
             const asset = new sources.RawSource(Buffer.from(compressed), false);
             log("emitting asset %s", this._name);
             compilation.emitAsset(this._name, asset);
@@ -51,26 +52,35 @@ class BrowserifyWebpackPlugin {
       );
     });
   }
-  private async _getWasabioMemory(files: string[]): Promise<Uint8Array> {
+  private async _makeWasabioMemory(files: string[]): Promise<Uint8Array> {
     const mem = await initialize();
-    for (const { src, dst } of files.map((file) => ({
-      src: file,
-      dst: file.replace(process.cwd(), ""),
-    }))) {
-      log("writing %s to %s", src, dst);
-      if ((await nativeFs.stat(src)).isDirectory()) {
-        await wasabioFs.mkdir(dst, { recursive: true });
+    const cwd = lowestCommonAncestor(...files);
+    const datum = await Promise.all(
+      files.map(async (src) => {
+        let content: Buffer | null = null;
+        const dst = src.replace(cwd, "");
+        if ((await nativeFs.stat(src)).isDirectory()) {
+          content = null;
+        } else {
+          content = await nativeFs.readFile(src);
+        }
+        return { dst, content };
+      })
+    );
+    for (const data of datum) {
+      log("writing to %s", data.dst);
+      if (data.content === null) {
+        await wasabioFs.mkdir(data.dst, { recursive: true });
       } else {
-        const srcData = await nativeFs.readFile(src);
-        await wasabioFs.mkdir(dirname(dst), { recursive: true });
-        await wasabioFs.writeFile(dst, srcData);
+        await wasabioFs.mkdir(dirname(data.dst), { recursive: true });
+        await wasabioFs.writeFile(data.dst, data.content);
       }
     }
     const serialized = serialize(mem);
     const compressed = await compress(serialized);
     return compressed;
   }
-  private async _getIncludedFiles(): Promise<string[]> {
+  private async _globIncludedPaths(): Promise<string[]> {
     const files = await Promise.all(
       this._includes.map((pattern) => glob(pattern, { ignore: this._excludes, absolute: true }))
     );
