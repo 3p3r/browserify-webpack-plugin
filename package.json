@@ -13,11 +13,11 @@
     "@types/debug": "^4.1.12",
     "@types/node": "^20.12.2",
     "@types/webpack": "^5.28.5",
-    "brocesses": "^0.0.1",
     "console-browserify": "^1.2.0",
     "debug": "^4.3.4",
     "esbuild-loader": "^4.1.0",
     "glob-gitignore": "^1.0.14",
+    "terser-webpack-plugin": "^5.3.10",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.7.1",
@@ -28,6 +28,7 @@
   },
   "optionalDependencies": {
     "assert": "^2.1.0",
+    "brocesses": "^0.0.1",
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
     "console-browserify": "^1.2.0",
@@ -47,6 +48,6 @@
     "url": "^0.11.3",
     "util": "^0.12.5",
     "vm-browserify": "^1.1.2",
-    "wasabio": "^1.0.2"
+    "wasabio": "^1.1.0"
   }
 }

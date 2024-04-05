@@ -1,7 +1,8 @@
 import debug from "debug";
 import { dirname } from "path";
-import { promises } from "fs";
-import { initialize, writeFileSync, mkdirSync, serialize, compress } from "wasabio";
+import { promises as nativeFs } from "fs";
+import TerserPlugin from "terser-webpack-plugin";
+import { initialize, serialize, compress, promises as wasabioFs } from "wasabio";
 import { type Configuration, type Compiler, ProvidePlugin, sources, Compilation } from "webpack";
 
 const PLUGIN_ID = "BrowserifyWebpackPlugin";
@@ -57,9 +58,13 @@ class BrowserifyWebpackPlugin {
       dst: file.replace(process.cwd(), ""),
     }))) {
       log("writing %s to %s", src, dst);
-      const srcData = await promises.readFile(src);
-      mkdirSync(dirname(dst), { recursive: true });
-      writeFileSync(dst, srcData);
+      if ((await nativeFs.stat(src)).isDirectory()) {
+        await wasabioFs.mkdir(dst, { recursive: true });
+      } else {
+        const srcData = await nativeFs.readFile(src);
+        await wasabioFs.mkdir(dirname(dst), { recursive: true });
+        await wasabioFs.writeFile(dst, srcData);
+      }
     }
     const serialized = serialize(mem);
     const compressed = await compress(serialized);
@@ -93,6 +98,7 @@ const BaseConfig = (env: any, args: any): Partial<Configuration> => {
         async_hooks: false,
         buffer: require.resolve("buffer/"),
         // child_process: require.resolve("brocesses"),
+        child_process: false,
         console: require.resolve("console-browserify"),
         constants: require.resolve("constants-browserify"),
         crypto: require.resolve("crypto-browserify"),
@@ -119,23 +125,37 @@ const BaseConfig = (env: any, args: any): Partial<Configuration> => {
         zlib: require.resolve("browserify-zlib"),
       },
     },
+    bail: true,
+    optimization: {
+      minimize: isProd(args),
+      minimizer: [
+        new TerserPlugin({
+          terserOptions: {
+            format: {
+              comments: false,
+            },
+          },
+          extractComments: false,
+        }),
+      ],
+    },
     plugins: [
       new ProvidePlugin({
-        global: "globalThis",
-        process: "process/browser",
-        console: "console-browserify",
-        Buffer: ["buffer", "Buffer"],
-        setImmediate: ["timers", "setImmediate"],
-        clearImmediate: ["timers", "clearImmediate"],
+        process: require.resolve("./mods/process"),
+        console: require.resolve("console-browserify"),
+        Buffer: [require.resolve("buffer"), "Buffer"],
       }),
       new BrowserifyWebpackPlugin(env),
-      // must be last
-      new BomPlugin(true),
+      // must be last, hides errors once activated!
+      ...(isProd(args) ? [new BomPlugin(true)] : []),
     ],
     node: {
       global: true,
       __dirname: "mock", // always "/"
       __filename: "mock", // always "./index.js"
+    },
+    performance: {
+      hints: false,
     },
   };
 };
