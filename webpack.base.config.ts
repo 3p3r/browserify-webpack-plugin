@@ -4,7 +4,10 @@ import { promises as nativeFs } from "fs";
 import TerserPlugin from "terser-webpack-plugin";
 import { lowestCommonAncestor } from "lowest-common-ancestor";
 import { initialize, serialize, compress, promises as wasabioFs } from "wasabio";
-import { type Configuration, type Compiler, ProvidePlugin, sources, Compilation } from "webpack";
+import { type Configuration, type Compiler, ProvidePlugin, DefinePlugin, sources, Compilation } from "webpack";
+import HtmlWebpackPlugin from "html-webpack-plugin";
+import InjectPlugin from "webpack-inject-plugin";
+import CopyPlugin from "copy-webpack-plugin";
 
 const PLUGIN_ID = "BrowserifyWebpackPlugin";
 const BomPlugin = require("webpack-utf8-bom");
@@ -91,10 +94,11 @@ class BrowserifyWebpackPlugin {
 }
 
 const BaseConfig = (env: any, args: any): Partial<Configuration> => {
+  const mode = isProd(args) ? "production" : "development";
   return {
+    mode,
     target: "web",
     devtool: isProd(args) ? false : "inline-source-map",
-    mode: isProd(args) ? "production" : "development",
     output: {
       libraryTarget: "umd",
       umdNamedDefine: true,
@@ -109,14 +113,14 @@ const BaseConfig = (env: any, args: any): Partial<Configuration> => {
         buffer: require.resolve("buffer/"),
         // child_process: require.resolve("brocesses"),
         child_process: false,
-        console: require.resolve("console-browserify"),
+        // console: require.resolve("console-browserify"),
         constants: require.resolve("constants-browserify"),
         crypto: require.resolve("crypto-browserify"),
         domain: require.resolve("domain-browser"),
         events: require.resolve("events/"),
         fs: require.resolve("wasabio"),
         http: require.resolve("fakettp/build"),
-        https: require.resolve("./mods/https"),
+        https: false,
         net: require.resolve("net-browserify"),
         os: require.resolve("os-browserify/browser"),
         path: require.resolve("path-browserify"),
@@ -128,7 +132,7 @@ const BaseConfig = (env: any, args: any): Partial<Configuration> => {
         sys: require.resolve("util/"),
         timers: require.resolve("timers-browserify"),
         tls: false,
-        tty: require.resolve("./mods/tty"),
+        tty: [require.resolve("./mods/process"), "tty"],
         url: require.resolve("url/"),
         util: require.resolve("util/"),
         vm: require.resolve("vm-browserify"),
@@ -151,11 +155,24 @@ const BaseConfig = (env: any, args: any): Partial<Configuration> => {
     },
     plugins: [
       new ProvidePlugin({
-        process: require.resolve("./mods/process"),
-        console: require.resolve("console-browserify"),
-        Buffer: [require.resolve("buffer"), "Buffer"],
+        process: [require.resolve("./mods/process"), "default"],
+        // console: require.resolve("console-browserify"),
+        Buffer: [require.resolve("buffer/"), "Buffer"],
       }),
+
       new BrowserifyWebpackPlugin(env),
+      new HtmlWebpackPlugin({ title: "" }),
+      new InjectPlugin(function () {
+        return `localStorage.debug = "*"`;
+      }),
+      new CopyPlugin({
+        patterns: [{ from: require.resolve("fakettp/fakettp.js"), to: "." }],
+      }),
+      new DefinePlugin({
+        [`process.env.DEBUG`]: JSON.stringify("*"),
+        [`process.env.WEBPACK_MODE`]: JSON.stringify(mode),
+        [`process.env.WEBPACK_FILENAME`]: JSON.stringify("fakettp.js"),
+      }),
       // must be last, hides errors once activated!
       ...(isProd(args) ? [new BomPlugin(true)] : []),
     ],
