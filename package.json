@@ -1,11 +1,15 @@
 {
   "name": "browserify-webpack-plugin",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Simple, yet comprehensive webpack plugin to bundle almost any javascript/typescript project for modern browsers.",
-  "main": "index.js",
+  "main": "./webpack.base.config.ts",
   "scripts": {
     "build": "webpack"
   },
+  "files": [
+    "mods",
+    "webpack.base.config.ts"
+  ],
   "keywords": [],
   "author": "Sepehr Laal",
   "license": "MIT",
