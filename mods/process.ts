@@ -1,3 +1,4 @@
+// @ts-ignore - no types
 import process from "process/browser";
 
 Object.assign(process, {
@@ -9,9 +10,6 @@ Object.assign(process, {
     write: (data: string) => console.error(data),
   },
   execArgv: [],
-  env: {
-    DEBUG: "*",
-  },
 });
 
 export default process;

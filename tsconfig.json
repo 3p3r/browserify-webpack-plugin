@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "declaration": true,
+    "module": "CommonJS",
+    "target": "ES2017",
+    "allowJs": true,
+    "skipLibCheck": true
+  },
+  "files": ["./webpack.base.config.ts"],
+  "include": ["./mods/**/*.ts"]
+}

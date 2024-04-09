@@ -10,7 +10,6 @@ import InjectPlugin from "webpack-inject-plugin";
 import CopyPlugin from "copy-webpack-plugin";
 
 const PLUGIN_ID = "BrowserifyWebpackPlugin";
-const BomPlugin = require("webpack-utf8-bom");
 const { glob } = require("glob-gitignore");
 
 const log = debug(PLUGIN_ID);
@@ -163,18 +162,16 @@ const BaseConfig = (env: any, args: any): Partial<Configuration> => {
       new BrowserifyWebpackPlugin(env),
       new HtmlWebpackPlugin({ title: "" }),
       new InjectPlugin(function () {
-        return `localStorage.debug = "*"`;
+        return `localStorage.debug = "${isProd(args) ? "" : "*"}"`;
       }),
       new CopyPlugin({
         patterns: [{ from: require.resolve("fakettp/fakettp.js"), to: "." }],
       }),
       new DefinePlugin({
-        [`process.env.DEBUG`]: JSON.stringify("*"),
+        [`process.env.DEBUG`]: JSON.stringify(`${isProd(args) ? "" : "*"}`),
         [`process.env.WEBPACK_MODE`]: JSON.stringify(mode),
         [`process.env.WEBPACK_FILENAME`]: JSON.stringify("fakettp.js"),
       }),
-      // must be last, hides errors once activated!
-      ...(isProd(args) ? [new BomPlugin(true)] : []),
     ],
     node: {
       global: true,

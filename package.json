@@ -1,23 +1,26 @@
 {
   "name": "browserify-webpack-plugin",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Simple, yet comprehensive webpack plugin to bundle almost any javascript/typescript project for modern browsers.",
-  "main": "./webpack.base.config.ts",
+  "main": "./webpack.base.config.js",
   "scripts": {
-    "build": "webpack"
+    "build": "tsc"
   },
   "files": [
-    "mods",
-    "./webpack.base.config.ts"
+    "mods/*.js",
+    "./webpack.base.config.js"
   ],
   "keywords": [],
   "author": "Sepehr Laal",
   "license": "MIT",
-  "dependencies": {
+  "devDependencies": {
     "@types/debug": "^4.1.12",
     "@types/lowest-common-ancestor": "^2.0.2",
     "@types/node": "^20.12.2",
     "@types/webpack": "^5.28.5",
+    "typescript": "^5.4.3"
+  },
+  "dependencies": {
     "assert": "^2.1.0",
     "brocesses": "^0.0.1",
     "browserify-zlib": "^0.2.0",
@@ -28,7 +31,6 @@
     "crypto-browserify": "^3.12.0",
     "debug": "^4.3.4",
     "domain-browser": "^5.7.0",
-    "esbuild-loader": "^4.1.0",
     "events": "^3.3.0",
     "fakettp": "^1.9.0",
     "glob-gitignore": "^1.0.14",
@@ -43,17 +45,11 @@
     "string_decoder": "^1.3.0",
     "terser-webpack-plugin": "^5.3.10",
     "timers-browserify": "^2.0.12",
-    "ts-loader": "^9.5.1",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.7.1",
-    "typescript": "^5.4.3",
     "url": "^0.11.3",
     "util": "^0.12.5",
     "vm-browserify": "^1.1.2",
     "wasabio": "^1.2.0",
-    "webpack-cli": "^5.1.4",
     "webpack-inject-plugin": "^1.5.5",
-    "webpack-utf8-bom": "^1.4.0",
     "webpack": "^5.91.0"
   }
 }
