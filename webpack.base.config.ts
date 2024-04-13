@@ -167,7 +167,7 @@ const BaseConfig = (env: any, args: any): Partial<Configuration> => {
 <html>
   <head>
     <meta charset="utf-8">
-    <title><%= htmlWebpackPlugin.options.title %></title>
+    <title></title>
     <style>
       body,
       html {
