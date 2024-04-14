@@ -21,15 +21,16 @@ const getKeyedEnvironmentVariables = (env: any, key: string) =>
     .map(([_, value]) => value) || []) as string[];
 const getExcludes = (env: any) => getKeyedEnvironmentVariables(env, "exclude");
 const getIncludes = (env: any) => getKeyedEnvironmentVariables(env, "include");
+const skipMemory = (env: any) => "skipMemory" in env;
 
 class BrowserifyWebpackPlugin {
   private readonly _name: string;
   private readonly _includes: string[];
   private readonly _excludes: string[];
   constructor(private readonly env: any) {
-    this._includes = getIncludes(env);
-    this._excludes = getExcludes(env);
-    this._name = env?.memory || "mem.zip";
+    this._includes = getIncludes(this.env);
+    this._excludes = getExcludes(this.env);
+    this._name = this.env?.memory || "mem.zip";
   }
   apply(compiler: Compiler) {
     log("applying %s", PLUGIN_ID);
@@ -158,7 +159,7 @@ const BaseConfig = (env: any, args: any): Partial<Configuration> => {
         // console: require.resolve("console-browserify"),
         Buffer: [require.resolve("buffer/"), "Buffer"],
       }),
-      new BrowserifyWebpackPlugin(env),
+      ...(skipMemory(env) ? [] : [new BrowserifyWebpackPlugin(env)]),
       new HtmlWebpackPlugin({
         title: "",
         filename: "app.html",
