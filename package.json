@@ -1,6 +1,6 @@
 {
   "name": "browserify-webpack-plugin",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Simple, yet comprehensive webpack plugin to bundle almost any javascript/typescript project for modern browsers.",
   "main": "./webpack.base.config.js",
   "scripts": {
@@ -48,7 +48,7 @@
     "url": "^0.11.3",
     "util": "^0.12.5",
     "vm-browserify": "^1.1.2",
-    "wasabio": "^1.2.0",
+    "wasabio": "^1.3.0",
     "webpack-inject-plugin": "^1.5.5",
     "webpack": "^5.91.0"
   }
