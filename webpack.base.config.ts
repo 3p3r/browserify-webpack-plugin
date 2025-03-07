@@ -108,6 +108,7 @@ class BrowserifyWebpackPlugin {
       }
     }
     try {
+      await nativeFs.mkdir(this._cache, { recursive: true });
       await nativeFs.writeFile(
         path.join(this._cache, CACHE_FILE_NAME),
         JSON.stringify(Array.from(writeCache.entries()))
