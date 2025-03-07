@@ -1,14 +1,21 @@
 import debug from "debug";
-import { dirname } from "path";
+import crypto from "crypto";
+import assert from "assert";
+import path, { dirname } from "path";
 import { promises as nativeFs } from "fs";
 import CopyPlugin from "copy-webpack-plugin";
 import TerserPlugin from "terser-webpack-plugin";
 import { lowestCommonAncestor } from "lowest-common-ancestor";
-import { initialize, serialize, compress, promises as wasabioFs } from "wasabio";
 import { type Configuration, type Compiler, ProvidePlugin, sources, Compilation } from "webpack";
+import { initialize, serialize, deserialize, compress, promises as wasabioFs, decompress } from "wasabio";
 
+const CACHE_FILE_NAME = "writeCache.json";
 const PLUGIN_ID = "BrowserifyWebpackPlugin";
 const { glob } = require("glob-gitignore");
+
+function quickHash(input: string): string {
+  return crypto.createHash("sha256").update(input).digest("hex");
+}
 
 const log = debug(PLUGIN_ID);
 
@@ -19,16 +26,20 @@ const getKeyedEnvironmentVariables = (env: any, key: string) =>
     .map(([_, value]) => value) || []) as string[];
 const getExcludes = (env: any) => getKeyedEnvironmentVariables(env, "exclude");
 const getIncludes = (env: any) => getKeyedEnvironmentVariables(env, "include");
-const skipMemory = (env: any) => "skipMemory" in env;
+const skipCopying = (env: any) => "skipCopying" in env;
 
 class BrowserifyWebpackPlugin {
   private readonly _name: string;
+  private readonly _dist: string;
+  private readonly _cache: string;
   private readonly _includes: string[];
   private readonly _excludes: string[];
   constructor(private readonly env: any) {
     this._includes = getIncludes(this.env);
     this._excludes = getExcludes(this.env);
+    this._cache = this.env?.cache || "cache";
     this._name = this.env?.memory || "mem.zip";
+    this._dist = this.env?.output || "dist";
   }
   apply(compiler: Compiler) {
     log("applying %s", PLUGIN_ID);
@@ -54,28 +65,55 @@ class BrowserifyWebpackPlugin {
     });
   }
   private async _makeWasabioMemory(files: string[]): Promise<Uint8Array> {
-    const mem = await initialize();
+    let writeCache = new Map<string, string>();
+    try {
+      assert(await nativeFs.stat(path.join(this._dist, this._name)), "unusable cache without a memory");
+      const _writeCache = await nativeFs.readFile(path.join(this._cache, CACHE_FILE_NAME));
+      writeCache = new Map(JSON.parse(_writeCache.toString()));
+    } catch (e) {
+      log("no write cache found");
+    }
+    let _mem: WebAssembly.Memory | undefined = undefined;
+    try {
+      const existing = await nativeFs.readFile(path.join(this._dist, this._name));
+      log("found existing memory %s", this._name);
+      const decompressed = await decompress(existing);
+      _mem = deserialize(decompressed);
+    } catch (e) {
+      log("no existing memory found %s", this._name);
+    }
+    const mem = await initialize(_mem);
     const cwd = lowestCommonAncestor(...files);
-    const datum = await Promise.all(
-      files.map(async (src) => {
-        let content: Buffer | null = null;
-        const dst = src.replace(cwd, "");
-        if ((await nativeFs.stat(src)).isDirectory()) {
-          content = null;
-        } else {
-          content = await nativeFs.readFile(src);
-        }
-        return { dst, content };
-      })
-    );
-    for (const data of datum) {
-      log("writing to %s", data.dst);
-      if (data.content === null) {
-        await wasabioFs.mkdir(data.dst, { recursive: true });
+    for (const file of files) {
+      const src = file;
+      const dst = src.replace(cwd, "");
+      let content: Buffer | null = null;
+      if ((await nativeFs.stat(src)).isDirectory()) {
+        content = null;
       } else {
-        await wasabioFs.mkdir(dirname(data.dst), { recursive: true });
-        await wasabioFs.writeFile(data.dst, data.content);
+        content = await nativeFs.readFile(src);
       }
+      const hash = content ? quickHash(content.toString()) : "";
+      const isCached = writeCache.has(dst) && writeCache.get(dst) === hash;
+      if (!isCached) {
+        log("writing to %s", dst);
+        if (content === null) {
+          await wasabioFs.mkdir(dst, { recursive: true });
+        } else {
+          await wasabioFs.mkdir(dirname(dst), { recursive: true });
+          await wasabioFs.writeFile(dst, content);
+        }
+        writeCache.set(dst, hash);
+        log("wrote %s", dst);
+      }
+    }
+    try {
+      await nativeFs.writeFile(
+        path.join(this._cache, CACHE_FILE_NAME),
+        JSON.stringify(Array.from(writeCache.entries()))
+      );
+    } catch (e) {
+      log("failed to write write cache %o", e);
     }
     const serialized = serialize(mem);
     const compressed = await compress(serialized);
@@ -157,14 +195,18 @@ const BaseConfig = (env: any, args: any): Partial<Configuration> => {
         // console: require.resolve("console-browserify"),
         Buffer: [require.resolve("buffer/"), "Buffer"],
       }),
-      ...(skipMemory(env) ? [] : [new BrowserifyWebpackPlugin(env)]),
-      new CopyPlugin({
-        patterns: [
-          { from: require.resolve("fakettp/fakettp.html"), to: "." },
-          { from: require.resolve("fakettp/fakettp.js"), to: "." },
-          { from: require.resolve("fakettp/nosw.js"), to: "." },
-        ],
-      }),
+      new BrowserifyWebpackPlugin(env),
+      ...(skipCopying(env)
+        ? []
+        : [
+            new CopyPlugin({
+              patterns: [
+                { from: require.resolve("fakettp/fakettp.html"), to: "." },
+                { from: require.resolve("fakettp/fakettp.js"), to: "." },
+                { from: require.resolve("fakettp/nosw.js"), to: "." },
+              ],
+            }),
+          ]),
     ],
     node: {
       global: true,
